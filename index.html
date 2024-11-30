@@ -96,6 +96,9 @@
       const initialRows = 20;
       const batchSize = columns; // Load one row per batch
 
+      let currentSelectedNumber = null;
+      let currentTopPrimes = [];
+
       // Initial Load: 20 rows
       generateNumbers(columns * initialRows);
 
@@ -130,6 +133,10 @@
         numberCells.forEach(cell => cell.remove());
         numberCounter = 2;
         columns = calculateColumns();
+        currentSelectedNumber = null;
+        currentTopPrimes = [];
+        // Reset colors for base cells
+        resetAllColors();
         // Calculate numbers to load to ensure at least 20 rows
         const numbersToLoad = columns * initialRows;
         generateNumbers(numbersToLoad);
@@ -171,6 +178,18 @@
           cell.dataset.number = n;
           cell.style.color = '#666666';
           cell.addEventListener('click', handleNumberClick);
+          
+          // Apply highlighting if a number is already selected
+          if (currentTopPrimes.length > 0) {
+            let colorComponents = [0, 0, 0]; // RGB
+            currentTopPrimes.forEach((prime, index) => {
+              if (n % prime === 0) {
+                colorComponents[index] = 255;
+              }
+            });
+            cell.style.color = `rgb(${colorComponents[0]}, ${colorComponents[1]}, ${colorComponents[2]})`;
+          }
+
           fragment.appendChild(cell);
         }
         grid.insertBefore(fragment, sentinel);
@@ -184,40 +203,50 @@
       // Function to handle number click
       function handleNumberClick(event) {
         const selectedNumber = parseInt(event.target.dataset.number);
-        highlightMultiples(selectedNumber);
+        if (selectedNumber === currentSelectedNumber) {
+          // If the same number is clicked again, deselect it
+          currentSelectedNumber = null;
+          currentTopPrimes = [];
+          resetAllColors();
+        } else {
+          currentSelectedNumber = selectedNumber;
+          currentTopPrimes = getTopThreePrimes(selectedNumber);
+          highlightMultiples(currentTopPrimes);
+        }
       }
 
-      // Function to highlight multiples based on 3 highest prime factors
-      function highlightMultiples(number) {
-        // Reset all colors to default
+      // Function to highlight multiples based on top three prime factors
+      function highlightMultiples(primes) {
+        const colors = ['#FF0000', '#00FF00', '#0000FF']; // Red, Green, Blue
+
         const cells = document.querySelectorAll('.number-cell');
-        cells.forEach(cell => {
-          cell.style.color = '#666666';
-        });
-
-        // Find unique prime factors
-        const primes = getPrimeFactors(number);
-        if (primes.length === 0) return; // No prime factors
-
-        // Get the three highest prime factors
-        const highestPrimes = primes.sort((a, b) => b - a).slice(0, 3);
-
-        // Assign colors to primes (Red, Green, Blue)
-        const colors = ['#FF0000', '#00FF00', '#0000FF'];
-
         cells.forEach(cell => {
           const n = parseInt(cell.dataset.number);
           let colorComponents = [0, 0, 0]; // RGB
 
-          highestPrimes.forEach((prime, index) => {
+          primes.forEach((prime, index) => {
             if (n % prime === 0) {
               colorComponents[index] = 255;
             }
           });
 
-          // Combine RGB components
           cell.style.color = `rgb(${colorComponents[0]}, ${colorComponents[1]}, ${colorComponents[2]})`;
         });
+      }
+
+      // Function to reset all number cells to default color
+      function resetAllColors() {
+        const cells = document.querySelectorAll('.number-cell');
+        cells.forEach(cell => {
+          cell.style.color = '#666666';
+        });
+      }
+
+      // Function to get the top three highest unique prime factors
+      function getTopThreePrimes(n) {
+        const primes = getPrimeFactors(n);
+        primes.sort((a, b) => b - a); // Sort descending
+        return primes.slice(0, 3); // Get top three
       }
 
       // Function to get unique prime factors of a number
