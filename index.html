@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Number Grid</title>
+<title>Number Grid with Infinite Scroll</title>
 <style>
   body {
     background-color: #000000;
@@ -27,15 +27,27 @@
     background-color: #333333;
   }
   .base-cell {
-    flex-basis: 100%;
+    flex: 1 0 50px;
     color: #FFFFFF;
+    cursor: default;
+  }
+  .base-select-cell {
+    flex: 1 0 50px;
+    color: #FFFFFF;
+  }
+  .base-select-cell select {
+    background-color: #000000;
+    color: #FFFFFF;
+    border: 1px solid #666666;
+    font-size: 16px;
+    height: 30px;
   }
 </style>
 </head>
 <body>
-<div class="grid">
-  <div class="cell base-cell">
-    Base:
+<div class="grid" id="grid">
+  <div class="cell base-cell">Base</div>
+  <div class="cell base-select-cell">
     <select id="baseSelect"></select>
   </div>
   <!-- Number cells will be generated here -->
@@ -51,15 +63,13 @@
   }
   baseSelect.value = 10; // Default base is 10
 
-  const grid = document.querySelector('.grid');
+  const grid = document.getElementById('grid');
+  let numberCounter = 2; // Start from 2
+  let isLoading = false; // To prevent multiple triggers
 
-  function generateGrid() {
-    // Remove existing number cells
-    const existingCells = document.querySelectorAll('.number-cell');
-    existingCells.forEach(cell => cell.remove());
-
-    // Generate number cells from 2 upwards
-    for (let n = 2; n <= 100; n++) {
+  function generateNumbers(count) {
+    for (let i = 0; i < count; i++) {
+      const n = numberCounter++;
       const cell = document.createElement('div');
       cell.classList.add('cell', 'number-cell');
       cell.textContent = n.toString(parseInt(baseSelect.value)).toUpperCase();
@@ -70,8 +80,15 @@
     }
   }
 
-  baseSelect.addEventListener('change', generateGrid);
-  generateGrid();
+  function handleBaseChange() {
+    // Reset the grid except the first two cells
+    const numberCells = document.querySelectorAll('.number-cell');
+    numberCells.forEach(cell => cell.remove());
+    numberCounter = 2;
+    generateNumbers(50); // Initial load
+  }
+
+  baseSelect.addEventListener('change', handleBaseChange);
 
   function handleNumberClick(event) {
     const selectedNumber = parseInt(event.target.dataset.number);
@@ -94,7 +111,6 @@
       highestPrimes.forEach((prime, index) => {
         if (n % prime === 0) {
           // Set the corresponding RGB component to 255
-          const rgb = hexToRgb(colors[index]);
           color[index] = 255;
         }
       });
@@ -118,14 +134,20 @@
     return Array.from(new Set(factors));
   }
 
-  function hexToRgb(hex) {
-    // Convert hex color to RGB components
-    const bigint = parseInt(hex.slice(1), 16);
-    const r = (bigint >> 16) & 255;
-    const g = (bigint >> 8) & 255;
-    const b = bigint & 255;
-    return { r, g, b };
-  }
+  // Infinite Scroll
+  window.addEventListener('scroll', () => {
+    if ((window.innerHeight + window.pageYOffset) >= document.body.offsetHeight - 500 && !isLoading) {
+      isLoading = true;
+      setTimeout(() => {
+        generateNumbers(50); // Load 50 more numbers
+        isLoading = false;
+      }, 500); // Simulate loading delay
+    }
+  });
+
+  // Initial load
+  generateNumbers(50);
+
 </script>
 </body>
 </html>
