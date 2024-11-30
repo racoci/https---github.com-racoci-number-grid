@@ -1,153 +1,250 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Number Grid with Infinite Scroll</title>
-<style>
-  body {
-    background-color: #000000;
-    color: #666666;
-    margin: 0;
-    padding: 0;
-    font-family: Arial, sans-serif;
-  }
-  .grid {
-    display: flex;
-    flex-wrap: wrap;
-  }
-  .cell {
-    flex: 1 0 50px;
-    height: 50px;
-    line-height: 50px;
-    text-align: center;
-    cursor: pointer;
-  }
-  .cell:hover {
-    background-color: #333333;
-  }
-  .base-cell {
-    flex: 1 0 50px;
-    color: #FFFFFF;
-    cursor: default;
-  }
-  .base-select-cell {
-    flex: 1 0 50px;
-    color: #FFFFFF;
-  }
-  .base-select-cell select {
-    background-color: #000000;
-    color: #FFFFFF;
-    border: 1px solid #666666;
-    font-size: 16px;
-    height: 30px;
-  }
-</style>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Responsive Number Grid with Infinite Scroll</title>
+  <style>
+    body {
+      background-color: #000000;
+      color: #666666;
+      margin: 0;
+      padding: 0;
+      font-family: Arial, sans-serif;
+      overflow-y: scroll;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, 50px);
+      grid-auto-rows: 50px;
+      gap: 2px;
+      padding: 10px;
+    }
+
+    .cell {
+      width: 50px;
+      height: 50px;
+      line-height: 50px;
+      text-align: center;
+      cursor: pointer;
+      box-sizing: border-box;
+      user-select: none;
+      background-color: #000000;
+      color: #666666;
+      transition: background-color 0.3s, color 0.3s;
+    }
+
+    .cell:hover {
+      background-color: #333333;
+    }
+
+    .base-cell {
+      background-color: #000000;
+      color: #FFFFFF;
+      font-weight: bold;
+      cursor: default;
+    }
+
+    .base-select-cell select {
+      background-color: #000000;
+      color: #FFFFFF;
+      border: 1px solid #666666;
+      font-size: 16px;
+      height: 30px;
+      width: 100%;
+      box-sizing: border-box;
+      cursor: pointer;
+    }
+
+    /* Sentinel Element Styling */
+    #sentinel {
+      width: 100%;
+      height: 20px;
+    }
+  </style>
 </head>
 <body>
-<div class="grid" id="grid">
-  <div class="cell base-cell">Base</div>
-  <div class="cell base-select-cell">
-    <select id="baseSelect"></select>
+
+  <div class="grid" id="grid">
+    <div class="cell base-cell">Base</div>
+    <div class="cell base-select-cell">
+      <select id="baseSelect"></select>
+    </div>
+    <!-- Number cells will be appended here -->
+    <div id="sentinel"></div>
   </div>
-  <!-- Number cells will be generated here -->
-</div>
-<script>
-  // Populate the base selector
-  const baseSelect = document.getElementById('baseSelect');
-  for (let i = 2; i <= 36; i++) {
-    const option = document.createElement('option');
-    option.value = i;
-    option.textContent = i;
-    baseSelect.appendChild(option);
-  }
-  baseSelect.value = 10; // Default base is 10
 
-  const grid = document.getElementById('grid');
-  let numberCounter = 2; // Start from 2
-  let isLoading = false; // To prevent multiple triggers
+  <script>
+    document.addEventListener('DOMContentLoaded', () => {
+      const baseSelect = document.getElementById('baseSelect');
+      const grid = document.getElementById('grid');
+      const sentinel = document.getElementById('sentinel');
 
-  function generateNumbers(count) {
-    for (let i = 0; i < count; i++) {
-      const n = numberCounter++;
-      const cell = document.createElement('div');
-      cell.classList.add('cell', 'number-cell');
-      cell.textContent = n.toString(parseInt(baseSelect.value)).toUpperCase();
-      cell.dataset.number = n;
-      cell.style.color = '#666666';
-      cell.addEventListener('click', handleNumberClick);
-      grid.appendChild(cell);
-    }
-  }
-
-  function handleBaseChange() {
-    // Reset the grid except the first two cells
-    const numberCells = document.querySelectorAll('.number-cell');
-    numberCells.forEach(cell => cell.remove());
-    numberCounter = 2;
-    generateNumbers(50); // Initial load
-  }
-
-  baseSelect.addEventListener('change', handleBaseChange);
-
-  function handleNumberClick(event) {
-    const selectedNumber = parseInt(event.target.dataset.number);
-    highlightMultiples(selectedNumber);
-  }
-
-  function highlightMultiples(number) {
-    // Find the 3 highest prime factors of the number
-    const primes = getPrimeFactors(number);
-    const highestPrimes = primes.slice(-3); // Get the last 3 primes
-
-    // Assign colors to primes (Red, Green, Blue)
-    const colors = ['#FF0000', '#00FF00', '#0000FF'];
-
-    const cells = document.querySelectorAll('.number-cell');
-    cells.forEach(cell => {
-      const n = parseInt(cell.dataset.number);
-      let color = [0, 0, 0]; // RGB components
-
-      highestPrimes.forEach((prime, index) => {
-        if (n % prime === 0) {
-          // Set the corresponding RGB component to 255
-          color[index] = 255;
-        }
-      });
-
-      cell.style.color = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
-    });
-  }
-
-  function getPrimeFactors(n) {
-    const factors = [];
-    let divisor = 2;
-    while (n >= 2) {
-      if (n % divisor === 0) {
-        factors.push(divisor);
-        n = n / divisor;
-      } else {
-        divisor++;
+      // Populate the base selector
+      for (let i = 2; i <= 36; i++) {
+        const option = document.createElement('option');
+        option.value = i;
+        option.textContent = i;
+        baseSelect.appendChild(option);
       }
-    }
-    // Return unique prime factors
-    return Array.from(new Set(factors));
-  }
+      baseSelect.value = 10; // Default base is 10
 
-  // Infinite Scroll
-  window.addEventListener('scroll', () => {
-    if ((window.innerHeight + window.pageYOffset) >= document.body.offsetHeight - 500 && !isLoading) {
-      isLoading = true;
-      setTimeout(() => {
-        generateNumbers(50); // Load 50 more numbers
-        isLoading = false;
-      }, 500); // Simulate loading delay
-    }
-  });
+      let numberCounter = 2; // Start from 2
+      let isLoading = false; // To prevent multiple triggers
+      let columns = calculateColumns();
+      const initialRows = 20;
+      const batchSize = columns; // Load one row per batch
 
-  // Initial load
-  generateNumbers(50);
+      // Initial Load: 20 rows
+      generateNumbers(columns * initialRows);
 
-</script>
+      // Setup IntersectionObserver for Infinite Scroll
+      const observer = new IntersectionObserver(handleIntersect, {
+        root: null,
+        rootMargin: '0px',
+        threshold: 1.0
+      });
+      observer.observe(sentinel);
+
+      // Event Listener for Base Change
+      baseSelect.addEventListener('change', handleBaseChange);
+
+      // Event Listener for Window Resize
+      window.addEventListener('resize', handleResize);
+
+      // Function to handle IntersectionObserver
+      function handleIntersect(entries) {
+        if (entries[0].isIntersecting && !isLoading) {
+          isLoading = true;
+          // Load next batch
+          generateNumbers(batchSize);
+          isLoading = false;
+        }
+      }
+
+      // Function to handle Base Change
+      function handleBaseChange() {
+        // Reset the grid except the first two cells
+        const numberCells = document.querySelectorAll('.number-cell');
+        numberCells.forEach(cell => cell.remove());
+        numberCounter = 2;
+        columns = calculateColumns();
+        // Calculate numbers to load to ensure at least 20 rows
+        const numbersToLoad = columns * initialRows;
+        generateNumbers(numbersToLoad);
+      }
+
+      // Function to handle Window Resize
+      function handleResize() {
+        const newColumns = calculateColumns();
+        if (newColumns !== columns) {
+          columns = newColumns;
+          // Adjust the grid to have total numbers as multiple of new columns
+          const totalNumbers = document.querySelectorAll('.number-cell').length;
+          const remainder = totalNumbers % columns;
+          if (remainder !== 0) {
+            const numbersToAdd = columns - remainder;
+            generateNumbers(numbersToAdd);
+          }
+        }
+      }
+
+      // Function to calculate the number of columns based on grid width
+      function calculateColumns() {
+        const gridStyles = window.getComputedStyle(grid);
+        const gridWidth = grid.clientWidth
+                          - parseFloat(gridStyles.paddingLeft)
+                          - parseFloat(gridStyles.paddingRight);
+        const cellSize = 50 + 2; // cell width + gap (50px + 2px)
+        return Math.max(1, Math.floor(gridWidth / cellSize));
+      }
+
+      // Function to generate a batch of numbers
+      function generateNumbers(count) {
+        const fragment = document.createDocumentFragment();
+        for (let i = 0; i < count; i++) {
+          const n = numberCounter++;
+          const cell = document.createElement('div');
+          cell.classList.add('cell', 'number-cell');
+          cell.textContent = toBase(n, parseInt(baseSelect.value));
+          cell.dataset.number = n;
+          cell.style.color = '#666666';
+          cell.addEventListener('click', handleNumberClick);
+          fragment.appendChild(cell);
+        }
+        grid.insertBefore(fragment, sentinel);
+      }
+
+      // Function to convert number to selected base with uppercase letters
+      function toBase(number, base) {
+        return number.toString(base).toUpperCase();
+      }
+
+      // Function to handle number click
+      function handleNumberClick(event) {
+        const selectedNumber = parseInt(event.target.dataset.number);
+        highlightMultiples(selectedNumber);
+      }
+
+      // Function to highlight multiples based on 3 highest prime factors
+      function highlightMultiples(number) {
+        // Reset all colors to default
+        const cells = document.querySelectorAll('.number-cell');
+        cells.forEach(cell => {
+          cell.style.color = '#666666';
+        });
+
+        // Find unique prime factors
+        const primes = getPrimeFactors(number);
+        if (primes.length === 0) return; // No prime factors
+
+        // Get the three highest prime factors
+        const highestPrimes = primes.sort((a, b) => b - a).slice(0, 3);
+
+        // Assign colors to primes (Red, Green, Blue)
+        const colors = ['#FF0000', '#00FF00', '#0000FF'];
+
+        cells.forEach(cell => {
+          const n = parseInt(cell.dataset.number);
+          let colorComponents = [0, 0, 0]; // RGB
+
+          highestPrimes.forEach((prime, index) => {
+            if (n % prime === 0) {
+              colorComponents[index] = 255;
+            }
+          });
+
+          // Combine RGB components
+          cell.style.color = `rgb(${colorComponents[0]}, ${colorComponents[1]}, ${colorComponents[2]})`;
+        });
+      }
+
+      // Function to get unique prime factors of a number
+      function getPrimeFactors(n) {
+        const factors = new Set();
+        // Handle 2 separately
+        while (n % 2 === 0) {
+          factors.add(2);
+          n = n / 2;
+        }
+        // Check for odd factors
+        let divisor = 3;
+        while (divisor * divisor <= n) {
+          while (n % divisor === 0) {
+            factors.add(divisor);
+            n = n / divisor;
+          }
+          divisor += 2;
+        }
+        if (n > 2) {
+          factors.add(n);
+        }
+        return Array.from(factors);
+      }
+
+    });
+  </script>
+
 </body>
 </html>
