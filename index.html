@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Number Grid</title>
+<style>
+  body {
+    background-color: #000000;
+    color: #666666;
+    margin: 0;
+    padding: 0;
+    font-family: Arial, sans-serif;
+  }
+  .grid {
+    display: flex;
+    flex-wrap: wrap;
+  }
+  .cell {
+    flex: 1 0 50px;
+    height: 50px;
+    line-height: 50px;
+    text-align: center;
+    cursor: pointer;
+  }
+  .cell:hover {
+    background-color: #333333;
+  }
+  .base-cell {
+    flex-basis: 100%;
+    color: #FFFFFF;
+  }
+</style>
+</head>
+<body>
+<div class="grid">
+  <div class="cell base-cell">
+    Base:
+    <select id="baseSelect"></select>
+  </div>
+  <!-- Number cells will be generated here -->
+</div>
+<script>
+  // Populate the base selector
+  const baseSelect = document.getElementById('baseSelect');
+  for (let i = 2; i <= 36; i++) {
+    const option = document.createElement('option');
+    option.value = i;
+    option.textContent = i;
+    baseSelect.appendChild(option);
+  }
+  baseSelect.value = 10; // Default base is 10
+
+  const grid = document.querySelector('.grid');
+
+  function generateGrid() {
+    // Remove existing number cells
+    const existingCells = document.querySelectorAll('.number-cell');
+    existingCells.forEach(cell => cell.remove());
+
+    // Generate number cells from 2 upwards
+    for (let n = 2; n <= 100; n++) {
+      const cell = document.createElement('div');
+      cell.classList.add('cell', 'number-cell');
+      cell.textContent = n.toString(parseInt(baseSelect.value)).toUpperCase();
+      cell.dataset.number = n;
+      cell.style.color = '#666666';
+      cell.addEventListener('click', handleNumberClick);
+      grid.appendChild(cell);
+    }
+  }
+
+  baseSelect.addEventListener('change', generateGrid);
+  generateGrid();
+
+  function handleNumberClick(event) {
+    const selectedNumber = parseInt(event.target.dataset.number);
+    highlightMultiples(selectedNumber);
+  }
+
+  function highlightMultiples(number) {
+    // Find the 3 highest prime factors of the number
+    const primes = getPrimeFactors(number);
+    const highestPrimes = primes.slice(-3); // Get the last 3 primes
+
+    // Assign colors to primes (Red, Green, Blue)
+    const colors = ['#FF0000', '#00FF00', '#0000FF'];
+
+    const cells = document.querySelectorAll('.number-cell');
+    cells.forEach(cell => {
+      const n = parseInt(cell.dataset.number);
+      let color = [0, 0, 0]; // RGB components
+
+      highestPrimes.forEach((prime, index) => {
+        if (n % prime === 0) {
+          // Set the corresponding RGB component to 255
+          const rgb = hexToRgb(colors[index]);
+          color[index] = 255;
+        }
+      });
+
+      cell.style.color = `rgb(${color[0]}, ${color[1]}, ${color[2]})`;
+    });
+  }
+
+  function getPrimeFactors(n) {
+    const factors = [];
+    let divisor = 2;
+    while (n >= 2) {
+      if (n % divisor === 0) {
+        factors.push(divisor);
+        n = n / divisor;
+      } else {
+        divisor++;
+      }
+    }
+    // Return unique prime factors
+    return Array.from(new Set(factors));
+  }
+
+  function hexToRgb(hex) {
+    // Convert hex color to RGB components
+    const bigint = parseInt(hex.slice(1), 16);
+    const r = (bigint >> 16) & 255;
+    const g = (bigint >> 8) & 255;
+    const b = bigint & 255;
+    return { r, g, b };
+  }
+</script>
+</body>
+</html>
