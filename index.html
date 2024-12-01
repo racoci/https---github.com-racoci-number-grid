@@ -16,23 +16,27 @@
 
     .grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, 50px);
+      grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
       grid-auto-rows: 50px;
       gap: 2px;
       padding: 10px;
     }
 
     .cell {
-      width: 50px;
-      height: 50px;
-      line-height: 50px;
-      text-align: center;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      width: 100%;
+      height: 100%;
       cursor: pointer;
       box-sizing: border-box;
       user-select: none;
       background-color: #000000;
       color: #666666;
       transition: background-color 0.3s, color 0.3s;
+      overflow: hidden;
+      word-wrap: break-word;
+      font-size: 16px;
     }
 
     .cell:hover {
@@ -62,6 +66,16 @@
       width: 100%;
       height: 20px;
     }
+
+    /* Responsive Font Size */
+    .cell-content {
+      width: 100%;
+      text-align: center;
+      font-size: 1em;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
   </style>
 </head>
 <body>
@@ -80,6 +94,16 @@
       const baseSelect = document.getElementById('baseSelect');
       const grid = document.getElementById('grid');
       const sentinel = document.getElementById('sentinel');
+
+      // Symbol mapping for bases 2-6
+      const symbolMap = {
+        0: '.',
+        1: '!',
+        2: ',',
+        3: ':',
+        4: '\'',
+        5: ';'
+      };
 
       // Populate the base selector
       for (let i = 2; i <= 36; i++) {
@@ -137,6 +161,8 @@
         currentTopPrimes = [];
         // Reset colors for base cells
         resetAllColors();
+        // Adjust grid template columns
+        adjustGridColumns();
         // Calculate numbers to load to ensure at least 20 rows
         const numbersToLoad = columns * initialRows;
         generateNumbers(numbersToLoad);
@@ -167,6 +193,23 @@
         return Math.max(1, Math.floor(gridWidth / cellSize));
       }
 
+      // Function to adjust grid template columns dynamically
+      function adjustGridColumns() {
+        grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${getCellWidth()}px, 1fr))`;
+      }
+
+      // Function to get cell width based on largest number
+      function getCellWidth() {
+        // Find the maximum number currently loaded
+        const maxNumber = numberCounter - 1;
+        const base = parseInt(baseSelect.value);
+        const maxDigits = toBase(maxNumber, base).length;
+        // Calculate width based on maxDigits
+        const baseWidth = 50; // Minimum width
+        const extraWidthPerChar = 10; // Additional width per character
+        return Math.max(baseWidth, 30 + maxDigits * extraWidthPerChar);
+      }
+
       // Function to generate a batch of numbers
       function generateNumbers(count) {
         const fragment = document.createDocumentFragment();
@@ -174,25 +217,35 @@
           const n = numberCounter++;
           const cell = document.createElement('div');
           cell.classList.add('cell', 'number-cell');
-          cell.textContent = toBase(n, parseInt(baseSelect.value));
+
+          // Determine the display value based on base and symbol mapping
+          const base = parseInt(baseSelect.value);
+          let displayValue = toBase(n, base);
+          if (base >= 2 && base <= 6) {
+            displayValue = displayValue.split('').map(digit => symbolMap[digit] || digit).join('');
+          }
+
+          const cellContent = document.createElement('div');
+          cellContent.classList.add('cell-content');
+          cellContent.textContent = displayValue;
+          cell.appendChild(cellContent);
+
           cell.dataset.number = n;
           cell.style.color = '#666666';
           cell.addEventListener('click', handleNumberClick);
-          
+
           // Apply highlighting if a number is already selected
           if (currentTopPrimes.length > 0) {
-            let colorComponents = [0, 0, 0]; // RGB
-            currentTopPrimes.forEach((prime, index) => {
-              if (n % prime === 0) {
-                colorComponents[index] = 255;
-              }
-            });
-            cell.style.color = `rgb(${colorComponents[0]}, ${colorComponents[1]}, ${colorComponents[2]})`;
+            const { backgroundColor, textColor } = getCellColors(n);
+            cell.style.backgroundColor = backgroundColor;
+            cell.style.color = textColor;
           }
 
           fragment.appendChild(cell);
         }
         grid.insertBefore(fragment, sentinel);
+        // Adjust cell sizes after adding new numbers
+        adjustGridColumns();
       }
 
       // Function to convert number to selected base with uppercase letters
@@ -202,7 +255,7 @@
 
       // Function to handle number click
       function handleNumberClick(event) {
-        const selectedNumber = parseInt(event.target.dataset.number);
+        const selectedNumber = parseInt(event.currentTarget.dataset.number);
         if (selectedNumber === currentSelectedNumber) {
           // If the same number is clicked again, deselect it
           currentSelectedNumber = null;
@@ -210,27 +263,19 @@
           resetAllColors();
         } else {
           currentSelectedNumber = selectedNumber;
-          currentTopPrimes = getTopThreePrimes(selectedNumber);
+          currentTopPrimes = getTopSixPrimes(selectedNumber);
           highlightMultiples(currentTopPrimes);
         }
       }
 
-      // Function to highlight multiples based on top three prime factors
+      // Function to highlight multiples based on top six prime factors
       function highlightMultiples(primes) {
-        const colors = ['#FF0000', '#00FF00', '#0000FF']; // Red, Green, Blue
-
         const cells = document.querySelectorAll('.number-cell');
         cells.forEach(cell => {
           const n = parseInt(cell.dataset.number);
-          let colorComponents = [0, 0, 0]; // RGB
-
-          primes.forEach((prime, index) => {
-            if (n % prime === 0) {
-              colorComponents[index] = 255;
-            }
-          });
-
-          cell.style.color = `rgb(${colorComponents[0]}, ${colorComponents[1]}, ${colorComponents[2]})`;
+          const { backgroundColor, textColor } = getCellColors(n);
+          cell.style.backgroundColor = backgroundColor;
+          cell.style.color = textColor;
         });
       }
 
@@ -238,15 +283,16 @@
       function resetAllColors() {
         const cells = document.querySelectorAll('.number-cell');
         cells.forEach(cell => {
+          cell.style.backgroundColor = '#000000';
           cell.style.color = '#666666';
         });
       }
 
-      // Function to get the top three highest unique prime factors
-      function getTopThreePrimes(n) {
+      // Function to get the top six highest unique prime factors
+      function getTopSixPrimes(n) {
         const primes = getPrimeFactors(n);
         primes.sort((a, b) => b - a); // Sort descending
-        return primes.slice(0, 3); // Get top three
+        return primes.slice(0, 6); // Get top six
       }
 
       // Function to get unique prime factors of a number
@@ -270,6 +316,102 @@
           factors.add(n);
         }
         return Array.from(factors);
+      }
+
+      // Function to calculate cell colors based on prime factors
+      function getCellColors(n) {
+        let backgroundRGB = [0, 0, 0]; // R, G, B
+        let textRGB = [128, 128, 128]; // R, G, B
+
+        currentTopPrimes.forEach((prime, index) => {
+          if (n % prime === 0) {
+            // Calculate multiplicity
+            const multiplicity = getMultiplicity(n, prime);
+            // Map multiplicity to intensity
+            // Background: 0-127
+            // Text: 128-255
+            const bgIntensity = Math.min(127, multiplicity * 21); // Adjust multiplier as needed
+            const txtIntensity = Math.min(255, 128 + multiplicity * 21);
+
+            if (index < 3) {
+              // Background channels: R, G, B
+              backgroundRGB[index] = bgIntensity;
+            } else if (index < 6) {
+              // Text channels: R, G, B
+              textRGB[index - 3] = txtIntensity;
+            }
+          }
+        });
+
+        return {
+          backgroundColor: `rgb(${backgroundRGB[0]}, ${backgroundRGB[1]}, ${backgroundRGB[2]})`,
+          textColor: `rgb(${textRGB[0]}, ${textRGB[1]}, ${textRGB[2]})`
+        };
+      }
+
+      // Function to get multiplicity of a prime factor in a number
+      function getMultiplicity(n, prime) {
+        let count = 0;
+        while (n % prime === 0) {
+          count++;
+          n = n / prime;
+        }
+        return count;
+      }
+
+      // Function to update colors for newly loaded numbers
+      function applyCurrentSelectionToNewCells() {
+        if (currentTopPrimes.length === 0) return;
+        const newCells = document.querySelectorAll('.number-cell:not([data-processed])');
+        newCells.forEach(cell => {
+          const n = parseInt(cell.dataset.number);
+          const { backgroundColor, textColor } = getCellColors(n);
+          cell.style.backgroundColor = backgroundColor;
+          cell.style.color = textColor;
+          cell.setAttribute('data-processed', 'true');
+        });
+      }
+
+      // Modified generateNumbers to mark processed cells
+      function generateNumbers(count) {
+        const fragment = document.createDocumentFragment();
+        for (let i = 0; i < count; i++) {
+          const n = numberCounter++;
+          const cell = document.createElement('div');
+          cell.classList.add('cell', 'number-cell');
+
+          // Determine the display value based on base and symbol mapping
+          const base = parseInt(baseSelect.value);
+          let displayValue = toBase(n, base);
+          if (base >= 2 && base <= 6) {
+            displayValue = displayValue.split('').map(digit => symbolMap[digit] || digit).join('');
+          }
+
+          const cellContent = document.createElement('div');
+          cellContent.classList.add('cell-content');
+          cellContent.textContent = displayValue;
+          cell.appendChild(cellContent);
+
+          cell.dataset.number = n;
+          cell.style.backgroundColor = '#000000';
+          cell.style.color = '#666666';
+          cell.addEventListener('click', handleNumberClick);
+
+          // Apply highlighting if a number is already selected
+          if (currentTopPrimes.length > 0) {
+            const { backgroundColor, textColor } = getCellColors(n);
+            cell.style.backgroundColor = backgroundColor;
+            cell.style.color = textColor;
+          }
+
+          // Mark as processed
+          cell.setAttribute('data-processed', 'true');
+
+          fragment.appendChild(cell);
+        }
+        grid.insertBefore(fragment, sentinel);
+        // Adjust cell sizes after adding new numbers
+        adjustGridColumns();
       }
 
     });
