@@ -76,6 +76,11 @@
       overflow: hidden;
       text-overflow: ellipsis;
     }
+
+    /* Highlight Selected Cell */
+    .selected {
+      border: 2px solid #FFD700; /* Gold border for selected cell */
+    }
   </style>
 </head>
 <body>
@@ -137,6 +142,15 @@
         { pos: '*', neg: '*' }  // Self-symmetric
       ];
 
+      // Symbol mapping for smaller bases (2-6) with existing symbols
+      const smallerBaseSymbolMap = {
+        2: { '0': '.', '1': '!' },
+        3: { '-1': ';', '0': '.', '1': '!' },
+        4: { '0': '.', '1': '!', '2': '\'', '3': ':' },
+        5: { '-2': '!', '-1': '\'', '0': '.', '1': ',', '2': ';' },
+        6: { '0': '.', '1': '!', '2': '\'', '3': ',', '4': ';', '5': ':' } // Swapped ',' and '\''
+      };
+
       // Populate the base selector
       for (let i = 2; i <= 36; i++) {
         const option = document.createElement('option');
@@ -184,20 +198,29 @@
 
       // Function to handle Base Change
       function handleBaseChange() {
-        // Reset the grid except the first two cells
+        // Do NOT reset currentSelectedNumber and currentTopPrimes
+        // Only reset the grid except the first two cells
         const numberCells = document.querySelectorAll('.number-cell');
         numberCells.forEach(cell => cell.remove());
         numberCounter = 2;
         columns = calculateColumns();
-        currentSelectedNumber = null;
-        currentTopPrimes = [];
-        // Reset colors for base cells
-        resetAllColors();
+        // Do NOT reset currentSelectedNumber and currentTopPrimes
         // Adjust grid template columns
         adjustGridColumns();
         // Calculate numbers to load to ensure at least 20 rows
         const numbersToLoad = columns * initialRows;
         generateNumbers(numbersToLoad);
+        // After generating numbers, reapply highlighting
+        if (currentTopPrimes.length > 0 && currentSelectedNumber !== null) {
+          highlightMultiples(currentTopPrimes);
+          // Add 'selected' class to the selected cell
+          const selectedCell = document.querySelector(`.number-cell[data-number='${currentSelectedNumber}']`);
+          if (selectedCell) {
+            selectedCell.classList.add('selected');
+          }
+          // Scroll to the selected number
+          scrollToSelectedNumber();
+        }
       }
 
       // Function to handle Window Resize
@@ -274,8 +297,8 @@
             displayValue = toBase(n, base).toUpperCase();
 
             // For smaller bases, use existing symbol mappings
-            if (base >= 2 && base <= 6 && baseSymbolMap[base]) {
-              displayValue = displayValue.split('').map(digit => baseSymbolMap[base][digit] || digit).join('');
+            if (base >= 2 && base <= 6 && smallerBaseSymbolMap[base]) {
+              displayValue = displayValue.split('').map(digit => smallerBaseSymbolMap[base][digit] || digit).join('');
             }
           }
 
@@ -351,10 +374,18 @@
           currentSelectedNumber = null;
           currentTopPrimes = [];
           resetAllColors();
+          event.currentTarget.classList.remove('selected');
         } else {
+          // Remove 'selected' class from previously selected cell
+          if (currentSelectedNumber !== null) {
+            const prevCell = document.querySelector(`.number-cell[data-number='${currentSelectedNumber}']`);
+            if (prevCell) prevCell.classList.remove('selected');
+          }
+
           currentSelectedNumber = selectedNumber;
           currentTopPrimes = getTopSixPrimes(selectedNumber);
           highlightMultiples(currentTopPrimes);
+          event.currentTarget.classList.add('selected');
         }
       }
 
@@ -417,7 +448,7 @@
           if (n % prime === 0) {
             // Calculate multiplicity
             const multiplicity = getMultiplicity(n, prime);
-            // Map multiplicity to intensity using a logarithmic scale
+            // Map multiplicity to intensity using the new function
             const bgIntensity = Math.min(127, getIncrementFromMultiplicity(multiplicity));
             const txtIntensity = Math.min(255, 128 + getIncrementFromMultiplicity(multiplicity));
 
@@ -453,6 +484,15 @@
         // Ensures that each additional multiplicity has a diminishing effect on intensity
         if (m <= 0) return 0;
         return Math.min(127, Math.floor(Math.log2(m + 1) * 20));
+      }
+
+      // Function to scroll to the selected number after base change
+      function scrollToSelectedNumber() {
+        if (currentSelectedNumber === null) return;
+        const selectedCell = document.querySelector(`.number-cell[data-number='${currentSelectedNumber}']`);
+        if (selectedCell) {
+          selectedCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }
       }
 
     });
