@@ -95,15 +95,47 @@
       const grid = document.getElementById('grid');
       const sentinel = document.getElementById('sentinel');
 
-      // Symbol mapping for bases 2-6
-      const symbolMap = {
-        0: '.',
-        1: '!',
-        2: ',',
-        3: ':',
-        4: '\'',
-        5: ';'
+      // Symbol mapping for different bases
+      const baseSymbolMap = {
+        // Base 3 (Symmetric)
+        3: { '-1': ';', '0': '.', '1': '!' },
+        
+        // Base 4
+        4: { '0': '.', '1': '!', '2': '\'', '3': ':' },
+        
+        // Base 5 (Symmetric)
+        5: { '-2': '!', '-1': '\'', '0': '.', '1': ',', '2': ';' },
+        
+        // Base 6
+        6: { '0': '.', '1': '!', '2': '\'', '3': ',', '4': ';', '5': ':' }, // Swapped ',' and '\''
+        
+        // Base 7 (Symmetric)
+        7: { '-3': '/', '-2': '\\', '-1': '(', '0': ')', '1': '{', '2': '}', '3': '[' },
+        
+        // Base 9 (Symmetric)
+        9: { '-4': '<', '-3': '/', '-2': '\\', '-1': '(', '0': ')', '1': '{', '2': '}', '3': '[', '4': ']' },
+        
+        // Add more bases as needed
       };
+
+      // Additional symmetric pairs for higher bases
+      const symmetricPairs = [
+        { pos: '/', neg: '\\' },
+        { pos: '(', neg: ')' },
+        { pos: '{', neg: '}' },
+        { pos: '[', neg: ']' },
+        { pos: '<', neg: '>' },
+        { pos: '^', neg: 'v' },
+        { pos: '?', neg: '¿' },
+        { pos: '-', neg: '_' },
+        { pos: '`', neg: '´' },
+        { pos: ':', neg: ';' },
+        { pos: '.', neg: '\'' },
+        { pos: ',', neg: '"' },
+        { pos: '|', neg: '|' }, // Self-symmetric
+        { pos: '+', neg: '+' }, // Self-symmetric
+        { pos: '*', neg: '*' }  // Self-symmetric
+      ];
 
       // Populate the base selector
       for (let i = 2; i <= 36; i++) {
@@ -195,15 +227,28 @@
 
       // Function to adjust grid template columns dynamically
       function adjustGridColumns() {
-        grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${getCellWidth()}px, 1fr))`;
+        const cellWidth = getCellWidth();
+        grid.style.gridTemplateColumns = `repeat(auto-fill, minmax(${cellWidth}px, 1fr))`;
       }
 
-      // Function to get cell width based on largest number
+      // Function to get cell width based on the largest number's digit count
       function getCellWidth() {
+        const base = parseInt(baseSelect.value);
+        let maxDigits = 1;
+
         // Find the maximum number currently loaded
         const maxNumber = numberCounter - 1;
-        const base = parseInt(baseSelect.value);
-        const maxDigits = toBase(maxNumber, base).length;
+        
+        if (baseSymbolMap[base] && base % 2 === 1) {
+          // Symmetric base
+          const digits = toBaseSymmetric(maxNumber, base).length;
+          maxDigits = digits;
+        } else if (baseSymbolMap[base]) {
+          // Non-symmetric base with symbol mappings
+          const digits = toBase(maxNumber, base).length;
+          maxDigits = digits;
+        }
+
         // Calculate width based on maxDigits
         const baseWidth = 50; // Minimum width
         const extraWidthPerChar = 10; // Additional width per character
@@ -218,11 +263,20 @@
           const cell = document.createElement('div');
           cell.classList.add('cell', 'number-cell');
 
-          // Determine the display value based on base and symbol mapping
           const base = parseInt(baseSelect.value);
-          let displayValue = toBase(n, base);
-          if (base >= 2 && base <= 6) {
-            displayValue = displayValue.split('').map(digit => symbolMap[digit] || digit).join('');
+          let displayValue;
+
+          if (baseSymbolMap[base] && base % 2 === 1) {
+            // Symmetric base
+            displayValue = toBaseSymmetric(n, base);
+          } else {
+            // Non-symmetric base
+            displayValue = toBase(n, base).toUpperCase();
+
+            // For smaller bases, use existing symbol mappings
+            if (base >= 2 && base <= 6 && baseSymbolMap[base]) {
+              displayValue = displayValue.split('').map(digit => baseSymbolMap[base][digit] || digit).join('');
+            }
           }
 
           const cellContent = document.createElement('div');
@@ -251,6 +305,42 @@
       // Function to convert number to selected base with uppercase letters
       function toBase(number, base) {
         return number.toString(base).toUpperCase();
+      }
+
+      // Function to handle symmetric base conversion
+      function toBaseSymmetric(number, base) {
+        if (!(base in baseSymbolMap)) {
+          // Fallback to standard base conversion if mapping not defined
+          return number.toString(base).toUpperCase();
+        }
+        
+        const mapping = baseSymbolMap[base];
+        const k = Math.floor((base - 1) / 2);
+        let digits = [];
+        let n = number;
+
+        while (n !== 0) {
+          let remainder = n % base;
+          n = Math.floor(n / base);
+
+          if (remainder > k) {
+            remainder -= base;
+            n += 1;
+          }
+
+          digits.push(remainder);
+        }
+
+        // Reverse digits for correct order
+        digits = digits.reverse();
+
+        // Map digits to symbols
+        const symbols = digits.map(digit => {
+          const sym = mapping[digit.toString()];
+          return sym !== undefined ? sym : digit.toString();
+        });
+
+        return symbols.join('');
       }
 
       // Function to handle number click
@@ -318,7 +408,7 @@
         return Array.from(factors);
       }
 
-      // Function to calculate cell colors based on prime factors
+      // Function to calculate cell colors based on prime factors and multiplicity
       function getCellColors(n) {
         let backgroundRGB = [0, 0, 0]; // R, G, B
         let textRGB = [128, 128, 128]; // R, G, B
@@ -327,11 +417,9 @@
           if (n % prime === 0) {
             // Calculate multiplicity
             const multiplicity = getMultiplicity(n, prime);
-            // Map multiplicity to intensity
-            // Background: 0-127
-            // Text: 128-255
-            const bgIntensity = Math.min(127, multiplicity * 21); // Adjust multiplier as needed
-            const txtIntensity = Math.min(255, 128 + multiplicity * 21);
+            // Map multiplicity to intensity using a logarithmic scale
+            const bgIntensity = Math.min(127, getIncrementFromMultiplicity(multiplicity));
+            const txtIntensity = Math.min(255, 128 + getIncrementFromMultiplicity(multiplicity));
 
             if (index < 3) {
               // Background channels: R, G, B
@@ -359,59 +447,12 @@
         return count;
       }
 
-      // Function to update colors for newly loaded numbers
-      function applyCurrentSelectionToNewCells() {
-        if (currentTopPrimes.length === 0) return;
-        const newCells = document.querySelectorAll('.number-cell:not([data-processed])');
-        newCells.forEach(cell => {
-          const n = parseInt(cell.dataset.number);
-          const { backgroundColor, textColor } = getCellColors(n);
-          cell.style.backgroundColor = backgroundColor;
-          cell.style.color = textColor;
-          cell.setAttribute('data-processed', 'true');
-        });
-      }
-
-      // Modified generateNumbers to mark processed cells
-      function generateNumbers(count) {
-        const fragment = document.createDocumentFragment();
-        for (let i = 0; i < count; i++) {
-          const n = numberCounter++;
-          const cell = document.createElement('div');
-          cell.classList.add('cell', 'number-cell');
-
-          // Determine the display value based on base and symbol mapping
-          const base = parseInt(baseSelect.value);
-          let displayValue = toBase(n, base);
-          if (base >= 2 && base <= 6) {
-            displayValue = displayValue.split('').map(digit => symbolMap[digit] || digit).join('');
-          }
-
-          const cellContent = document.createElement('div');
-          cellContent.classList.add('cell-content');
-          cellContent.textContent = displayValue;
-          cell.appendChild(cellContent);
-
-          cell.dataset.number = n;
-          cell.style.backgroundColor = '#000000';
-          cell.style.color = '#666666';
-          cell.addEventListener('click', handleNumberClick);
-
-          // Apply highlighting if a number is already selected
-          if (currentTopPrimes.length > 0) {
-            const { backgroundColor, textColor } = getCellColors(n);
-            cell.style.backgroundColor = backgroundColor;
-            cell.style.color = textColor;
-          }
-
-          // Mark as processed
-          cell.setAttribute('data-processed', 'true');
-
-          fragment.appendChild(cell);
-        }
-        grid.insertBefore(fragment, sentinel);
-        // Adjust cell sizes after adding new numbers
-        adjustGridColumns();
+      // New Function: Calculate intensity increment based on multiplicity
+      function getIncrementFromMultiplicity(m) {
+        // Using a logarithmic scale to prioritize smaller changes
+        // Ensures that each additional multiplicity has a diminishing effect on intensity
+        if (m <= 0) return 0;
+        return Math.min(127, Math.floor(Math.log2(m + 1) * 20));
       }
 
     });
