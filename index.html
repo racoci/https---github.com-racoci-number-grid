@@ -5,15 +5,98 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <title>Responsive Number Grid with Infinite Scroll</title>
   <style>
+    /* Reset and Base Styles */
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
     body {
       background-color: #000000;
       color: #666666;
-      margin: 0;
-      padding: 0;
       font-family: Arial, sans-serif;
       overflow-y: scroll;
     }
 
+    /* Fixed Information Line */
+    .info-line {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      background-color: #1a1a1a;
+      color: #ffffff;
+      padding: 10px;
+      font-size: 16px;
+      z-index: 1000;
+      border-bottom: 2px solid #444444;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+    }
+
+    /* Left Section: Base Selector and Display 0 & 1 */
+    .info-left {
+      display: flex;
+      align-items: center;
+      gap: 20px;
+    }
+
+    .info-left .base-section {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .info-left .base-section span {
+      font-weight: bold;
+    }
+
+    /* Middle Section: Number Input */
+    .info-middle {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .info-middle input[type="text"] {
+      padding: 5px;
+      font-size: 16px;
+      border: 1px solid #666666;
+      border-radius: 4px;
+      width: 150px;
+    }
+
+    .info-middle button {
+      padding: 5px 10px;
+      font-size: 16px;
+      background-color: #444444;
+      color: #ffffff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+
+    .info-middle button:hover {
+      background-color: #666666;
+    }
+
+    /* Right Section: Prime Factorization */
+    .info-right {
+      font-size: 16px;
+      max-width: 300px;
+      word-wrap: break-word;
+    }
+
+    /* Add top padding to body to prevent content being hidden behind the fixed info line */
+    body {
+      padding-top: 80px; /* Adjust based on .info-line height */
+    }
+
+    /* Grid Styles */
     .grid {
       display: grid;
       grid-template-columns: repeat(auto-fill, minmax(50px, 1fr));
@@ -22,32 +105,21 @@
       padding: 10px;
     }
 
+    /* Cell Styles */
     .cell {
       display: flex;
       align-items: center;
       justify-content: center;
-      width: 100%;
-      height: 100%;
       cursor: pointer;
-      box-sizing: border-box;
-      user-select: none;
       background-color: #000000;
       color: #666666;
       transition: background-color 0.3s, color 0.3s;
       overflow: hidden;
-      word-wrap: break-word;
       font-size: 16px;
     }
 
     .cell:hover {
       background-color: #333333;
-    }
-
-    .base-cell {
-      background-color: #000000;
-      color: #FFFFFF;
-      font-weight: bold;
-      cursor: default;
     }
 
     .base-select-cell select {
@@ -56,9 +128,14 @@
       border: 1px solid #666666;
       font-size: 16px;
       height: 30px;
-      width: 100%;
-      box-sizing: border-box;
+      width: 100px;
       cursor: pointer;
+      border-radius: 4px;
+    }
+
+    /* Highlight Selected Cell */
+    .selected {
+      border: 2px solid #FFD700; /* Gold border for selected cell */
     }
 
     /* Sentinel Element Styling */
@@ -71,25 +148,46 @@
     .cell-content {
       width: 100%;
       text-align: center;
-      font-size: 1em;
       white-space: nowrap;
       overflow: hidden;
       text-overflow: ellipsis;
-    }
-
-    /* Highlight Selected Cell */
-    .selected {
-      border: 2px solid #FFD700; /* Gold border for selected cell */
     }
   </style>
 </head>
 <body>
 
-  <div class="grid" id="grid">
-    <div class="cell base-cell">Base</div>
-    <div class="cell base-select-cell">
-      <select id="baseSelect"></select>
+  <!-- Fixed Information Line -->
+  <div id="infoLine" class="info-line">
+    <!-- Left Section: Base Selector and Display 0 & 1 -->
+    <div class="info-left">
+      <div class="base-section">
+        <span>Base:</span>
+        <select id="baseSelect">
+          <!-- Base options will be populated via JavaScript -->
+        </select>
+      </div>
+      <div class="display-section">
+        <span>0:</span>
+        <span id="zeroDisplay">0</span>
+        <span>1:</span>
+        <span id="oneDisplay">1</span>
+      </div>
     </div>
+
+    <!-- Middle Section: Number Input -->
+    <div class="info-middle">
+      <input type="text" id="numberInput" placeholder="Enter number">
+      <button id="goButton">Go</button>
+    </div>
+
+    <!-- Right Section: Prime Factorization -->
+    <div class="info-right" id="infoRight">
+      Select a number to see its prime factors.
+    </div>
+  </div>
+
+  <!-- Grid Container -->
+  <div class="grid" id="grid">
     <!-- Number cells will be appended here -->
     <div id="sentinel"></div>
   </div>
@@ -99,6 +197,11 @@
       const baseSelect = document.getElementById('baseSelect');
       const grid = document.getElementById('grid');
       const sentinel = document.getElementById('sentinel');
+      const infoRight = document.getElementById('infoRight');
+      const zeroDisplay = document.getElementById('zeroDisplay');
+      const oneDisplay = document.getElementById('oneDisplay');
+      const numberInput = document.getElementById('numberInput');
+      const goButton = document.getElementById('goButton');
 
       // Symbol mapping for different bases
       const baseSymbolMap = {
@@ -123,25 +226,6 @@
         // Add more bases as needed
       };
 
-      // Additional symmetric pairs for higher bases
-      const symmetricPairs = [
-        { pos: '/', neg: '\\' },
-        { pos: '(', neg: ')' },
-        { pos: '{', neg: '}' },
-        { pos: '[', neg: ']' },
-        { pos: '<', neg: '>' },
-        { pos: '^', neg: 'v' },
-        { pos: '?', neg: '¿' },
-        { pos: '-', neg: '_' },
-        { pos: '`', neg: '´' },
-        { pos: ':', neg: ';' },
-        { pos: '.', neg: '\'' },
-        { pos: ',', neg: '"' },
-        { pos: '|', neg: '|' }, // Self-symmetric
-        { pos: '+', neg: '+' }, // Self-symmetric
-        { pos: '*', neg: '*' }  // Self-symmetric
-      ];
-
       // Symbol mapping for smaller bases (2-6) with existing symbols
       const smallerBaseSymbolMap = {
         2: { '0': '.', '1': '!' },
@@ -164,7 +248,7 @@
       let isLoading = false; // To prevent multiple triggers
       let columns = calculateColumns();
       const initialRows = 20;
-      const batchSize = columns; // Load one row per batch
+      const batchSize = columns * 5; // Load multiple rows per batch for better performance
 
       let currentSelectedNumber = null;
       let currentTopPrimes = [];
@@ -186,6 +270,14 @@
       // Event Listener for Window Resize
       window.addEventListener('resize', handleResize);
 
+      // Event Listener for Go Button
+      goButton.addEventListener('click', handleGoButton);
+      numberInput.addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') {
+          handleGoButton();
+        }
+      });
+
       // Function to handle IntersectionObserver
       function handleIntersect(entries) {
         if (entries[0].isIntersecting && !isLoading) {
@@ -198,16 +290,17 @@
 
       // Function to handle Base Change
       function handleBaseChange() {
-        // Do NOT reset currentSelectedNumber and currentTopPrimes
-        // Only reset the grid except the first two cells
+        // Update display for 0 and 1
+        updateZeroOneDisplay();
+
+        // Reset the grid except the sentinel
         const numberCells = document.querySelectorAll('.number-cell');
         numberCells.forEach(cell => cell.remove());
         numberCounter = 2;
         columns = calculateColumns();
-        // Do NOT reset currentSelectedNumber and currentTopPrimes
         // Adjust grid template columns
         adjustGridColumns();
-        // Calculate numbers to load to ensure at least 20 rows
+        // Calculate numbers to load to ensure at least initialRows
         const numbersToLoad = columns * initialRows;
         generateNumbers(numbersToLoad);
         // After generating numbers, reapply highlighting
@@ -218,8 +311,13 @@
           if (selectedCell) {
             selectedCell.classList.add('selected');
           }
+          // Update the info line with prime factorization
+          updateInfoLine();
           // Scroll to the selected number
           scrollToSelectedNumber();
+        } else {
+          // If no selection, clear the info line
+          clearInfoLine();
         }
       }
 
@@ -304,7 +402,7 @@
 
           const cellContent = document.createElement('div');
           cellContent.classList.add('cell-content');
-          cellContent.textContent = displayValue;
+          cellContent.innerHTML = displayValue;
           cell.appendChild(cellContent);
 
           cell.dataset.number = n;
@@ -317,6 +415,9 @@
             cell.style.backgroundColor = backgroundColor;
             cell.style.color = textColor;
           }
+
+          // Add tooltip for accessibility
+          cell.title = `Number: ${n}`;
 
           fragment.appendChild(cell);
         }
@@ -375,6 +476,7 @@
           currentTopPrimes = [];
           resetAllColors();
           event.currentTarget.classList.remove('selected');
+          clearInfoLine();
         } else {
           // Remove 'selected' class from previously selected cell
           if (currentSelectedNumber !== null) {
@@ -386,6 +488,7 @@
           currentTopPrimes = getTopSixPrimes(selectedNumber);
           highlightMultiples(currentTopPrimes);
           event.currentTarget.classList.add('selected');
+          updateInfoLine();
         }
       }
 
@@ -486,6 +589,44 @@
         return Math.min(127, Math.floor(Math.log2(m + 1) * 20));
       }
 
+      // Function to update the info line with prime factorization
+      function updateInfoLine() {
+        if (currentSelectedNumber === null) {
+          infoRight.innerHTML = 'Select a number to see its prime factors.';
+          return;
+        }
+
+        const factors = getPrimeFactors(currentSelectedNumber);
+        if (factors.length === 0) {
+          infoRight.innerHTML = `Number <strong>${currentSelectedNumber}</strong> has no prime factors.`;
+          return;
+        }
+
+        // Calculate prime factorization with multiplicities
+        const factorCounts = {};
+        let n = currentSelectedNumber;
+        factors.forEach(prime => {
+          factorCounts[prime] = 0;
+          while (n % prime === 0) {
+            factorCounts[prime]++;
+            n /= prime;
+          }
+        });
+
+        // Create a string representation of the prime factorization with superscript
+        const factorization = Object.keys(factorCounts)
+          .sort((a, b) => b - a) // Sort primes descending
+          .map(prime => `${prime}${factorCounts[prime] > 1 ? `<sup>${factorCounts[prime]}</sup>` : ''}`)
+          .join(' × ');
+
+        infoRight.innerHTML = `Selected Number: <strong>${currentSelectedNumber}</strong> | Prime Factorization: ${factorization}`;
+      }
+
+      // Function to clear the info line
+      function clearInfoLine() {
+        infoRight.innerHTML = 'Select a number to see its prime factors.';
+      }
+
       // Function to scroll to the selected number after base change
       function scrollToSelectedNumber() {
         if (currentSelectedNumber === null) return;
@@ -494,6 +635,142 @@
           selectedCell.scrollIntoView({ behavior: 'smooth', block: 'center' });
         }
       }
+
+      // Function to update display for 0 and 1 based on selected base
+      function updateZeroOneDisplay() {
+        const base = parseInt(baseSelect.value);
+        // Display 0 is always '0'
+        zeroDisplay.textContent = '0';
+        // Display 1 based on base symbol mapping
+        if (baseSymbolMap[base] && baseSymbolMap[base]['1']) {
+          oneDisplay.textContent = baseSymbolMap[base]['1'];
+        } else {
+          oneDisplay.textContent = '1';
+        }
+      }
+
+      // Initial display update for 0 and 1
+      updateZeroOneDisplay();
+
+      // Function to handle Go Button Click
+      function handleGoButton() {
+        const input = numberInput.value.trim();
+        if (input === '') return;
+
+        let base = parseInt(baseSelect.value);
+        let decimalNumber;
+
+        // Try to parse the input in the current base
+        decimalNumber = parseInput(input, base);
+
+        if (decimalNumber === null) {
+          // If parsing failed, attempt to guess the base
+          base = guessBase(input);
+          if (base === null) {
+            alert('Unable to determine the base for the input.');
+            return;
+          }
+          // Update the base selector
+          baseSelect.value = base;
+          updateZeroOneDisplay();
+          // Handle base change
+          handleBaseChange();
+          // Parse again with the new base
+          decimalNumber = parseInput(input, base);
+          if (decimalNumber === null) {
+            alert('Invalid number for the determined base.');
+            return;
+          }
+        }
+
+        // Check if the number exists in the grid
+        // If not, generate numbers up to that number
+        if (decimalNumber >= numberCounter) {
+          generateNumbers(decimalNumber - numberCounter + 1);
+        }
+
+        // Select the number in the grid
+        const targetCell = document.querySelector(`.number-cell[data-number='${decimalNumber}']`);
+        if (targetCell) {
+          targetCell.click();
+        } else {
+          alert('Number not found in the grid.');
+        }
+      }
+
+      // Function to parse input based on base
+      function parseInput(input, base) {
+        try {
+          // Reverse the symbol mapping to get numeric values
+          let numericStr = '';
+          for (let char of input) {
+            let found = false;
+            // Check if the character is a digit
+            if (!isNaN(char)) {
+              if (parseInt(char) < base) {
+                numericStr += char;
+                found = true;
+              }
+            }
+            // Check symbol mappings
+            if (!found) {
+              for (let [key, value] of Object.entries(smallerBaseSymbolMap[base] || {})) {
+                if (value === char) {
+                  numericStr += key;
+                  found = true;
+                  break;
+                }
+              }
+            }
+            if (!found) {
+              return null; // Invalid character for the base
+            }
+          }
+          return parseInt(numericStr, base);
+        } catch (e) {
+          return null;
+        }
+      }
+
+      // Function to guess the smallest base that includes the input characters
+      function guessBase(input) {
+        // Iterate through possible bases starting from 2
+        for (let b = 2; b <= 36; b++) {
+          let valid = true;
+          for (let char of input) {
+            if (!isValidCharForBase(char, b)) {
+              valid = false;
+              break;
+            }
+          }
+          if (valid) {
+            return b;
+          }
+        }
+        return null; // Unable to guess base
+      }
+
+      // Function to check if a character is valid for a given base
+      function isValidCharForBase(char, base) {
+        if (!isNaN(char)) {
+          return parseInt(char) < base;
+        }
+        // Check symbol mappings
+        const mapping = smallerBaseSymbolMap[base] || {};
+        return Object.values(mapping).includes(char);
+      }
+
+      // Function to update display for 0 and 1
+      // Already defined earlier
+
+      // Function to handle Go Button Click
+      // Already defined earlier
+
+      // Function to handle prime factorization and highlight
+      // Already defined earlier
+
+      // Function to update the info line
+      // Already defined earlier
 
     });
   </script>
