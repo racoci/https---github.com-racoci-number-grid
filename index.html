@@ -244,7 +244,7 @@
       }
       baseSelect.value = 10; // Default base is 10
 
-      let numberCounter = 2; // Start from 2
+      let numberCounter = 0; // Start from 0
       let isLoading = false; // To prevent multiple triggers
       let columns = calculateColumns();
       const initialRows = 20;
@@ -444,6 +444,7 @@
         let n = number;
 
         while (n !== 0) {
+          console.log(`${n} still not equal 0`)
           let remainder = n % base;
           n = Math.floor(n / base);
 
@@ -483,8 +484,8 @@
             const prevCell = document.querySelector(`.number-cell[data-number='${currentSelectedNumber}']`);
             if (prevCell) prevCell.classList.remove('selected');
           }
-
           currentSelectedNumber = selectedNumber;
+          console.log(`Selecting number ${selectedNumber}`)
           currentTopPrimes = getTopSixPrimes(selectedNumber);
           highlightMultiples(currentTopPrimes);
           event.currentTarget.classList.add('selected');
@@ -522,6 +523,10 @@
       // Function to get unique prime factors of a number
       function getPrimeFactors(n) {
         const factors = new Set();
+        if (n < 2) {
+          console.log(`${n} < 2. No prime factors`)
+          return Array.from(factors);
+        }
         // Handle 2 separately
         while (n % 2 === 0) {
           factors.add(2);
@@ -530,6 +535,7 @@
         // Check for odd factors
         let divisor = 3;
         while (divisor * divisor <= n) {
+          console.log(`Handling divisor ${divisor}`)
           while (n % divisor === 0) {
             factors.add(divisor);
             n = n / divisor;
@@ -574,7 +580,11 @@
       // Function to get multiplicity of a prime factor in a number
       function getMultiplicity(n, prime) {
         let count = 0;
+        if (n < 2) {
+          return 0;
+        }
         while (n % prime === 0) {
+          console.log(`Counting multiplicity of ${n} by ${prime}`)
           count++;
           n = n / prime;
         }
@@ -608,6 +618,7 @@
         factors.forEach(prime => {
           factorCounts[prime] = 0;
           while (n % prime === 0) {
+            console.log(`${n} % ${prime} still not equal 0`)
             factorCounts[prime]++;
             n /= prime;
           }
